@@ -6,7 +6,9 @@ A from-scratch learning/demo project: a mini ride-hailing backend (rider request
 
 ## Status
 
-Architecture and requirements planning is complete. **No code has been written yet.** Next step is Docker Compose skeleton (see Build Order below).
+Step 1 (Docker Compose skeleton) is done and verified: `docker compose up --build` brings up all 8 containers (postgres, redis, gateway, auth-service, trip-service, matching-service, location-service, notification-service), each Node service is a bare Express stub exposing `GET /health`, and all healthchecks pass.
+
+Step 2 (Auth service) is in progress. Done so far: `users` table (`id`, `email` unique, `password`, `name`, `role` check `rider`/`driver`, `created_at`) via `node-pg-migrate` (CommonJS-style migration files — the tool's ESM template default conflicts with this project's `"module": "commonjs"` tsconfig), migrations run automatically on container start (`sh -c "npm run migrate:up && npm run dev"` in docker-compose), `pg` Pool wired via `DATABASE_URL`, `JWT_SECRET` set (same value) on both `auth-service` and `gateway` in docker-compose. `POST /auth/signup` is implemented and verified working end-to-end (bcrypt hash, insert, JWT issuance, `23505` unique-violation caught and returned as a clean 409) — still missing request validation (no zod schema yet, so malformed input like a missing password currently surfaces as a raw 500 instead of 400). Not started yet: `POST /auth/login`, Gateway JWT verification middleware.
 
 ## Confirmed Stack & Decisions
 
@@ -92,8 +94,8 @@ Services: `gateway`, `auth-service`, `trip-service`, `matching-service`, `locati
 
 ## Build Order
 
-1. Docker Compose skeleton + Postgres/Redis wiring + health-checked empty services *(next up)*
-2. Auth service + Gateway JWT verification
+1. ~~Docker Compose skeleton + Postgres/Redis wiring + health-checked empty services~~ — done
+2. Auth service + Gateway JWT verification *(next up)*
 3. Trip service (schema, state machine, REST, `trip.requested` producer)
 4. Shared Redis Streams event-bus helper package
 5. Matching service (GEOSEARCH + Lua-script pending-offer claim + retry logic)

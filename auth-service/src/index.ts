@@ -1,13 +1,19 @@
-import express from 'express';
+import express from "express";
 
-const SERVICE_NAME = 'auth-service';
+import authRouter from "./routes/auth";
+
+const SERVICE_NAME = "auth-service";
 const PORT = process.env.PORT || 3001;
 
 const app = express();
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: SERVICE_NAME });
+app.use(express.json());
+
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok", service: SERVICE_NAME });
 });
+
+app.use("/auth", authRouter);
 
 app.listen(PORT, () => {
   console.log(`${SERVICE_NAME} listening on port ${PORT}`);

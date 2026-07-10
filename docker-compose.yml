@@ -35,6 +35,8 @@ services:
     environment:
       PORT: 3001
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/auth_db
+      JWT_SECRET: 9900e06bf9d4a7ce829b04da4d2498529ee582d96fbdb50c3463a468ad3e4d54
+    command: sh -c "npm run migrate:up && npm run dev"
     volumes:
       - ./auth-service:/app
       - /app/node_modules
@@ -132,6 +134,7 @@ services:
     build: ./gateway
     environment:
       PORT: 3000
+      JWT_SECRET: 9900e06bf9d4a7ce829b04da4d2498529ee582d96fbdb50c3463a468ad3e4d54
     ports:
       - "3000:3000"
     volumes:

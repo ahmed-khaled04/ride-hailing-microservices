@@ -5,15 +5,25 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "migrate:up": "node-pg-migrate up",
+    "migrate:down": "node-pg-migrate down"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "bcryptjs": "^3.0.3",
+    "express": "^4.22.2",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.22.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
-    "@types/node": "^20.14.9",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/express": "^4.17.25",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20.19.43",
+    "@types/pg": "^8.20.0",
+    "node-pg-migrate": "^8.0.4",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.5.3"
+    "typescript": "^5.9.3"
   }
 }
