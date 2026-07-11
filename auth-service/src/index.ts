@@ -1,6 +1,7 @@
 import express from "express";
 
 import authRouter from "./routes/auth";
+import { errorHandler } from "./middleware/errorHandler";
 
 const SERVICE_NAME = "auth-service";
 const PORT = process.env.PORT || 3001;
@@ -14,6 +15,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/auth", authRouter);
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`${SERVICE_NAME} listening on port ${PORT}`);
