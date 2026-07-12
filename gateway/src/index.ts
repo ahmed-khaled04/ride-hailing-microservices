@@ -1,13 +1,24 @@
-import express from 'express';
+import express from "express";
 
-const SERVICE_NAME = 'gateway';
+import { authProxy } from "./proxy/authProxy";
+import { verifyToken } from "./middleware/verifyJwt";
+import { errorHandler } from "./middleware/errorHandler";
+
+const SERVICE_NAME = "gateway";
 const PORT = process.env.PORT || 3000;
 
 const app = express();
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: SERVICE_NAME });
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok", service: SERVICE_NAME });
 });
+
+app.use("/auth", authProxy);
+app.get("/me", verifyToken, (req, res) => {
+  res.json({ user: req.user });
+});
+
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`${SERVICE_NAME} listening on port ${PORT}`);

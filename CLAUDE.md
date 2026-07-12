@@ -8,7 +8,11 @@ A from-scratch learning/demo project: a mini ride-hailing backend (rider request
 
 Step 1 (Docker Compose skeleton) is done and verified: `docker compose up --build` brings up all 8 containers (postgres, redis, gateway, auth-service, trip-service, matching-service, location-service, notification-service), each Node service is a bare Express stub exposing `GET /health`, and all healthchecks pass.
 
-Step 2 (Auth service) core functionality is done and verified end-to-end. `users` table (`id`, `email` unique, `password`, `name`, `role` check `rider`/`driver`, `created_at`) via `node-pg-migrate` (CommonJS-style migration files — the tool's ESM template default conflicts with this project's `"module": "commonjs"` tsconfig), migrations run automatically on container start (`sh -c "npm run migrate:up && npm run dev"` in docker-compose), `pg` Pool wired via `DATABASE_URL`, `JWT_SECRET` set (same value) on both `auth-service` and `gateway` in docker-compose. `POST /auth/signup` and `POST /auth/login` are both implemented and tested (bcrypt hash/compare, JWT issuance, `23505` unique-violation → clean 409 on signup, generic "Email or password is incorrect" 401 on both bad-email and bad-password login cases to avoid user-enumeration). Request validation is in place via zod schemas (`signupSchema`, `loginSchema`) applied through a reusable `validate(schema)` middleware factory, and a centralized `errorHandler` middleware (last in the Express stack) translates thrown `HttpError`s into proper status codes. Not started yet: Gateway JWT verification middleware, Gateway routing of `/auth/*` to auth-service.
+Step 2 (Auth service + Gateway JWT verification) is done and verified end-to-end.
+
+Auth service: `users` table (`id`, `email` unique, `password`, `name`, `role` check `rider`/`driver`, `created_at`) via `node-pg-migrate` (CommonJS-style migration files — the tool's ESM template default conflicts with this project's `"module": "commonjs"` tsconfig), migrations run automatically on container start (`sh -c "npm run migrate:up && npm run dev"` in docker-compose), `pg` Pool wired via `DATABASE_URL`, `JWT_SECRET` set (same value) on both `auth-service` and `gateway` in docker-compose. `POST /auth/signup` and `POST /auth/login` are both implemented and tested (bcrypt hash/compare, JWT issuance, `23505` unique-violation → clean 409 on signup, generic "Email or password is incorrect" 401 on both bad-email and bad-password login cases to avoid user-enumeration). Request validation is in place via zod schemas (`signupSchema`, `loginSchema`) applied through a reusable `validate(schema)` middleware factory, and a centralized `errorHandler` middleware (last in the Express stack) translates thrown `HttpError`s into proper status codes.
+
+Gateway: `verifyToken` middleware reads `Authorization: Bearer <token>`, verifies via `jwt.verify` with the shared `JWT_SECRET`, and attaches the decoded `{ sub, role }` payload to `req.user` (typed via a global `Express.Request` augmentation in `src/types/express.d.ts`) before calling `next()`; invalid/expired/missing tokens all return a clean `401` through the same `HttpError`/`errorHandler` pattern used in auth-service. `POST/GET /auth/*` is proxied to `auth-service` via `http-proxy-middleware` (`pathRewrite` needed to restore the `/auth` prefix Express strips when a router is mounted with `app.use("/auth", ...)`), left public/unprotected since signup/login happen before a token exists. A temporary `GET /me` route (protected by `verifyToken`, echoes `req.user`) exists purely to verify the middleware end-to-end — expect this to be replaced once a real protected service (trip-service etc.) exists to route to. Not started yet: forwarding `x-user-id`/`x-user-role` headers to proxied protected services (no protected backend service exists yet to wire this to), Trip service (next up per Build Order).
 
 ## Confirmed Stack & Decisions
 
@@ -95,8 +99,8 @@ Services: `gateway`, `auth-service`, `trip-service`, `matching-service`, `locati
 ## Build Order
 
 1. ~~Docker Compose skeleton + Postgres/Redis wiring + health-checked empty services~~ — done
-2. Auth service + Gateway JWT verification *(next up)*
-3. Trip service (schema, state machine, REST, `trip.requested` producer)
+2. ~~Auth service + Gateway JWT verification~~ — done
+3. Trip service (schema, state machine, REST, `trip.requested` producer) *(next up)*
 4. Shared Redis Streams event-bus helper package
 5. Matching service (GEOSEARCH + Lua-script pending-offer claim + retry logic)
 6. Location service (WS ingestion, geo updates, position streaming)
