@@ -57,6 +57,7 @@ services:
       PORT: 3002
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/trip_db
       REDIS_URL: redis://redis:6379
+    command: sh -c "npm run migrate:up && npm run dev"
     volumes:
       - ./trip-service:/app
       - /app/node_modules

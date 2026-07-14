@@ -1,6 +1,8 @@
 import express from "express";
 
 import { authProxy } from "./proxy/authProxy";
+import { tripsProxy } from "./proxy/tripsProxy";
+
 import { verifyToken } from "./middleware/verifyJwt";
 import { errorHandler } from "./middleware/errorHandler";
 
@@ -14,9 +16,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/auth", authProxy);
-app.get("/me", verifyToken, (req, res) => {
-  res.json({ user: req.user });
-});
+app.use("/trips", verifyToken, tripsProxy);
 
 app.use(errorHandler);
 
