@@ -26,9 +26,13 @@ Step 4 (shared Redis Streams event-bus helper package) is done and verified end-
 
 Wiring `trip-service` to depend on `event-bus` required widening its Docker build: `docker-compose.yml`'s `trip-service.build` now uses `context: .` (repo root) with an explicit `dockerfile: trip-service/Dockerfile`, so the image build can see both `package.json`/`packages/event-bus` and `trip-service/` and run a single hoisted `npm install` from the workspace root. Volume mounts shifted accordingly — `./trip-service:/app/trip-service` and `./packages:/app/packages`, with anonymous volumes on both `/app/trip-service/node_modules` and `/app/node_modules` to protect the hoisted install from being clobbered by the bind mounts. Hit the known stale-anonymous-volume gotcha during this change (old `node_modules` from the pre-workspace layout persisted across `up --build`, still missing `event-bus`) — resolved with `docker compose up -d --build -V trip-service`. `dual-write` risk (Postgres insert commits, then `publishEvents` fails) is accepted for now — see build-order step 10.
 
-Only `trip-service` has been updated to this workspace-aware Docker pattern so far, since it's the only current `event-bus` consumer; the other services' Dockerfiles/build contexts stay as simple single-directory builds until they too need the package (Matching in step 5, Notification in step 7).
+`matching-service` now follows the same workspace-aware Docker pattern (repo-root build context, `matching-service/Dockerfile`, and matching volume mounts in `docker-compose.yml`) as the second `event-bus` consumer.
 
 Gateway's `tripsProxy` covers both new routes for free, no extra Gateway wiring needed.
+
+Step 5 (Matching service) is in progress. The core concurrency-safe claim + first-offer flow is implemented and verified end-to-end (manually seeded a fake driver via `redis-cli GEOADD`/`SET`, fired a real trip through the Gateway, confirmed `trip.offer.created` landed on the stream with the driver correctly flipped `available → offered`). Built so far: `src/redis.ts` (ioredis client + `claimDriver` custom command registered via `defineCommand`, with a matching `declare module "ioredis"` augmentation so TypeScript knows about it), `src/scripts/claimDriver.lua` (atomic compare-and-swap on `driver:{id}:status` — the actual concurrency guard, no TTL on the status key itself), `src/geo.ts` (`findNearbyDrivers` via `GEOSEARCH`, `driverStatusKey`/`driverOfferKey` builders, `createOffer` which sets `driver:{id}:offer` with a TTL), and `src/matching.ts` (`handleTripRequested`: GEOSEARCH candidates, loop trying `claimDriver` nearest-first until one succeeds, `createOffer` + `trip.offer.created` on success, `trip.no_drivers_available` if every candidate is exhausted — this second event type isn't implemented yet). `src/index.ts` wires `consumeEvent("matching-service", `matching-${os.hostname()}`, ...)` from the event-bus package, with a manual type assertion on `event.data` at the call site (loose `Record<string, unknown>` from the package's current type, tightened here since only `trip.requested` events reach this branch).
+
+Not started yet: `POST /offers/:tripId/accept` and `POST /offers/:tripId/reject` REST endpoints (need a way to look up which driver holds the current offer for a given tripId — `driverOfferKey` is currently keyed by driver, not trip, so this needs either a reverse index or the driver's own ID passed in the request), and the polling sweep for offer-TTL expiry (needs a sorted-set tracking structure, e.g. `ZADD offers:pending <expiryTimestamp> <driverId>` alongside `createOffer`, since a plain Redis TTL'd key gives no way to notice expiry after the fact — see Matching Service Design Notes above).
 
 ## Confirmed Stack & Decisions
 
@@ -124,10 +128,21 @@ Services: `gateway`, `auth-service`, `trip-service`, `matching-service`, `locati
 8. React + Leaflet demo wired end-to-end
 9. Race-condition test: fire many concurrent `trip.requested` events at the same driver pool, confirm no driver is ever double-offered/double-matched
 10. Transactional outbox pattern for event publishing — Postgres write + event publish are currently two independent operations (dual-write problem: if `publishEvents` throws after the DB insert already committed, the trip exists but is stuck at `requested` with no event ever reaching Matching). Current interim behavior: publish failure propagates to `errorHandler` and returns 500 to the caller, even though the DB row is already committed. Proper fix: write the trip row and an outbox event row in the same transaction, then a background relay process reads unpublished outbox rows and pushes them to Redis, marking them published on success — guarantees at-least-once delivery without silently losing events.
+11. Swap the Matching service's offer-TTL sweep from polling to Redis key-expiry + keyspace notifications, once the polling version (built in step 5) is working and verified — see Open Question below.
+
+## Matching Service Design Notes
+
+Core concurrency guard: an atomic Lua script does a compare-and-swap on `driver:{id}:status` (`GET` == expected value → `SET` new value, all in one Redis-atomic script) — this, not any application-level check-then-act logic, is what prevents two Matching instances from both claiming the same driver for two different trips at once.
+
+Candidate selection is re-run via a fresh `GEOSEARCH` on every retry (rather than caching/reusing the original candidate list) — drivers are constantly moving, so a stale candidate list could offer a trip to a driver who's no longer actually nearby.
+
+Offer-TTL expiry is handled via a **polling sweep** (Matching periodically scans for offers past their TTL and triggers a retry with the next-nearest candidate) rather than Redis keyspace notifications — chosen as the simpler starting implementation; swapping to keyspace-notification-driven expiry is deferred to build-order step 11.
+
+Build-order sequencing note: Matching (step 5) is built before Location (step 6), so `drivers:geo` and `driver:{id}:status` won't have any real data from a running service yet while Matching is being built/tested. Test data is seeded manually (`redis-cli GEOADD`/`SET`) against the agreed-upon Redis schema during this phase, rather than reordering the build order.
 
 ## Open Question
 
-Whether the offer TTL sweep is driven by Redis key-expiry + keyspace notifications, or a polling sweep in the Matching service — decide when implementing that service.
+~~Whether the offer TTL sweep is driven by Redis key-expiry + keyspace notifications, or a polling sweep in the Matching service~~ — decided: polling sweep first (step 5), keyspace notifications later (step 11).
 
 ---
 
