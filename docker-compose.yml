@@ -52,14 +52,18 @@ services:
       - backend
 
   trip-service:
-    build: ./trip-service
+    build:
+      context: .
+      dockerfile: trip-service/Dockerfile
     environment:
       PORT: 3002
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/trip_db
       REDIS_URL: redis://redis:6379
     command: sh -c "npm run migrate:up && npm run dev"
     volumes:
-      - ./trip-service:/app
+      - ./trip-service:/app/trip-service
+      - ./packages:/app/packages
+      - /app/trip-service/node_modules
       - /app/node_modules
     depends_on:
       postgres:

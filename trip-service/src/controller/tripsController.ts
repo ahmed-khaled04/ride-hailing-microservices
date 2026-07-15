@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { publishEvents } from "event-bus";
 
 import { pool } from "../db";
 import { HttpError } from "../errors";
@@ -22,16 +23,27 @@ export const createTrip = async (
     }
 
     const result = await pool.query(
-      "INSERT INTO trips (rider_id , origin_lat , origin_lng , dest_lat , dest_lng) VALUES ($1, $2 , $3 , $4 , $5) RETURNING id , status",
+      "INSERT INTO trips (rider_id , origin_lat , origin_lng , dest_lat , dest_lng) VALUES ($1, $2 , $3 , $4 , $5) RETURNING id , status , requested_at",
       [rider_id, origin_lat, origin_lng, dest_lat, dest_lng],
     );
 
+    const trip = result.rows[0];
+
     //Emit the event
+    await publishEvents("trip.requested", {
+      tripId: trip.id,
+      riderId: rider_id,
+      originLat: origin_lat,
+      originLng: origin_lng,
+      destLat: dest_lat,
+      destLng: dest_lng,
+      requestedAt: trip.requested_at,
+    });
 
     res.status(201).json({
       message: "Trip created",
-      tripId: result.rows[0].id,
-      status: result.rows[0].status,
+      tripId: trip.id,
+      status: trip.status,
     });
   } catch (err) {
     next(err);
