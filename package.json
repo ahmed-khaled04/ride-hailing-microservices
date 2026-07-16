@@ -3,6 +3,12 @@
   "private": true,
   "version": "1.0.0",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "auth-service",
+    "trip-service",
+    "matching-service",
+    "location-service",
+    "notification-service",
+    "gateway"
   ]
 }

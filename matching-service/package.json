@@ -10,7 +10,8 @@
   "dependencies": {
     "express": "^4.19.2",
     "ioredis": "^5.11.1",
-    "event-bus": "*"
+    "event-bus": "*",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
