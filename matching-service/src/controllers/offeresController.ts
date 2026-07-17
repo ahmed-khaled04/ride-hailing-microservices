@@ -5,7 +5,7 @@ import { clearOfferTracking, driverOfferKey, driverStatusKey } from "../geo";
 import { HttpError } from "../errors";
 import { publishEvents } from "event-bus";
 import { retryMatch } from "../matching";
-import { clearTripTracking } from "../trip";
+import { clearTripTracking, getTripData } from "../trip";
 
 export const acceptOffer = async (
   req: Request,
@@ -39,6 +39,8 @@ export const acceptOffer = async (
       return next(new HttpError("Offer is no longer active", 409));
     }
 
+    const tripData = await getTripData(tripId);
+
     await redis.del(driverOfferKey(userId));
     await clearTripTracking(tripId);
     await clearOfferTracking(userId, tripId);
@@ -46,6 +48,7 @@ export const acceptOffer = async (
     await publishEvents("trip.matched", {
       tripId,
       driverId: userId,
+      riderId: tripData?.riderId,
       matchedAt: new Date().toISOString(),
     });
 

@@ -19,6 +19,7 @@ import {
 
 export async function handleTripRequested(data: {
   tripId: string;
+  riderId: string;
   originLat: number;
   originLng: number;
   destLat: number;

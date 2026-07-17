@@ -14,6 +14,7 @@ consumeEvent("matching-service", `matching-${os.hostname()}`, async (event) => {
   await handleTripRequested(
     event.data as {
       tripId: string;
+      riderId: string;
       originLat: number;
       originLng: number;
       destLat: number;
