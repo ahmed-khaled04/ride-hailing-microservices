@@ -2,6 +2,7 @@ import express from "express";
 
 import { authProxy } from "./proxy/authProxy";
 import { tripsProxy } from "./proxy/tripsProxy";
+import { offersProxy } from "./proxy/offersProxy";
 
 import { verifyToken } from "./middleware/verifyJwt";
 import { errorHandler } from "./middleware/errorHandler";
@@ -17,6 +18,7 @@ app.get("/health", (_req, res) => {
 
 app.use("/auth", authProxy);
 app.use("/trips", verifyToken, tripsProxy);
+app.use("/offers", verifyToken, offersProxy);
 
 app.use(errorHandler);
 
