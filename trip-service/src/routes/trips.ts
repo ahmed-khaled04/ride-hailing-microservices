@@ -4,6 +4,8 @@ import {
   createTrip,
   fetchTrip,
   cancelTrip,
+  confirmPickup,
+  confirmDropoff,
 } from "../controller/tripsController";
 import { validate } from "../middleware/validate";
 import {
@@ -26,6 +28,20 @@ router.post(
   validate(cancelTripParamsSchema, "params"),
   validate(CancelTripBodySchema),
   cancelTrip,
+);
+
+// Confirm Pickup
+router.post(
+  "/:id/confirm-pickup",
+  validate(fetchTripSchema, "params"),
+  confirmPickup,
+);
+
+// Confirm Dropoff
+router.post(
+  "/:id/confirm-dropoff",
+  validate(fetchTripSchema, "params"),
+  confirmDropoff,
 );
 
 export default router;

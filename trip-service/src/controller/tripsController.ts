@@ -122,3 +122,135 @@ export const cancelTrip = async (
     next(err);
   }
 };
+
+export const confirmPickup = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const id = req.params.id;
+    const userId = req.headers["x-user-id"];
+    const userRole = req.headers["x-user-role"];
+
+    if (!userId || typeof userId !== "string") {
+      return next(new HttpError("Missing user identity", 401));
+    }
+
+    const result = await pool.query("SELECT * FROM trips WHERE id = $1", [id]);
+    if (result.rows.length <= 0) {
+      return next(new HttpError("Trip Not Found", 404));
+    }
+    const trip = result.rows[0];
+    if (trip.rider_id !== userId && trip.driver_id !== userId) {
+      return next(new HttpError("Trip Not Found", 404));
+    }
+
+    const column =
+      userRole === "driver"
+        ? "driver_pickup_confirmed_at"
+        : "rider_pickup_confirmed_at";
+
+    await pool.query(
+      `UPDATE trips
+       SET ${column} = now()
+       WHERE id = $1
+         AND status = 'driver_en_route'
+         AND ${column} IS NULL`,
+      [id],
+    );
+
+    const flipResult = await pool.query(
+      `UPDATE trips
+       SET status = 'in_progress'
+       WHERE id = $1
+         AND status = 'driver_en_route'
+         AND driver_pickup_confirmed_at IS NOT NULL
+         AND rider_pickup_confirmed_at IS NOT NULL
+       RETURNING status`,
+      [id],
+    );
+
+    if (flipResult.rows.length > 0) {
+      await publishEvents("trip.state_changed", {
+        tripId: id,
+        from: "driver_en_route",
+        to: "in_progress",
+        changedAt: new Date().toISOString(),
+      });
+    }
+
+    res.status(200).json({
+      message: "Pickup confirmed",
+      status: flipResult.rows[0]?.status ?? trip.status,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const confirmDropoff = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const id = req.params.id;
+    const userId = req.headers["x-user-id"];
+    const userRole = req.headers["x-user-role"];
+
+    if (!userId || typeof userId !== "string") {
+      return next(new HttpError("Missing user identity", 401));
+    }
+
+    const result = await pool.query("SELECT * FROM trips WHERE id = $1", [id]);
+    if (result.rows.length <= 0) {
+      return next(new HttpError("Trip Not Found", 404));
+    }
+    const trip = result.rows[0];
+    if (trip.rider_id !== userId && trip.driver_id !== userId) {
+      return next(new HttpError("Trip Not Found", 404));
+    }
+
+    const column =
+      userRole === "driver"
+        ? "driver_dropoff_confirmed_at"
+        : "rider_dropoff_confirmed_at";
+
+    await pool.query(
+      `UPDATE trips
+       SET ${column} = now()
+       WHERE id = $1
+         AND status = 'in_progress'
+         AND ${column} IS NULL`,
+      [id],
+    );
+
+    const flipResult = await pool.query(
+      `UPDATE trips
+       SET status = 'completed', completed_at = now()
+       WHERE id = $1
+         AND status = 'in_progress'
+         AND driver_dropoff_confirmed_at IS NOT NULL
+         AND rider_dropoff_confirmed_at IS NOT NULL
+       RETURNING status`,
+      [id],
+    );
+
+    if (flipResult.rows.length > 0) {
+      await publishEvents("trip.state_changed", {
+        tripId: id,
+        from: "in_progress",
+        to: "completed",
+        changedAt: new Date().toISOString(),
+      });
+    }
+
+    res.status(200).json({
+      message: "Dropoff confirmed",
+      status: flipResult.rows[0]?.status ?? trip.status,
+    });
+  } catch (err) {
+    next(err);
+  }
+};

@@ -2,6 +2,7 @@ import express from "express";
 
 import tripsRouter from "./routes/trips";
 import { errorHandler } from "./middleware/errorHandler";
+import { startTripEventsConsumer } from "./events/consumer";
 
 const SERVICE_NAME = "trip-service";
 const PORT = process.env.PORT || 3002;
@@ -17,6 +18,8 @@ app.get("/health", (_req, res) => {
 app.use("/trips", tripsRouter);
 
 app.use(errorHandler);
+
+startTripEventsConsumer();
 
 app.listen(PORT, () => {
   console.log(`${SERVICE_NAME} listening on port ${PORT}`);
