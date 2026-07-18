@@ -102,12 +102,16 @@ services:
       - backend
 
   location-service:
-    build: ./location-service
+    build:
+      context: .
+      dockerfile: location-service/Dockerfile
     environment:
       PORT: 3004
       REDIS_URL: redis://redis:6379
     volumes:
-      - ./location-service:/app
+      - ./location-service:/app/location-service
+      - ./packages:/app/packages
+      - /app/location-service/node_modules
       - /app/node_modules
     depends_on:
       redis:
@@ -121,12 +125,16 @@ services:
       - backend
 
   notification-service:
-    build: ./notification-service
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
     environment:
       PORT: 3005
       REDIS_URL: redis://redis:6379
     volumes:
-      - ./notification-service:/app
+      - ./notification-service:/app/notification-service
+      - ./packages:/app/packages
+      - /app/notification-service/node_modules
       - /app/node_modules
     depends_on:
       redis:
@@ -140,14 +148,18 @@ services:
       - backend
 
   gateway:
-    build: ./gateway
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
     environment:
       PORT: 3000
       JWT_SECRET: 9900e06bf9d4a7ce829b04da4d2498529ee582d96fbdb50c3463a468ad3e4d54
     ports:
       - "3000:3000"
     volumes:
-      - ./gateway:/app
+      - ./gateway:/app/gateway
+      - ./packages:/app/packages
+      - /app/gateway/node_modules
       - /app/node_modules
     depends_on:
       - auth-service

@@ -109,7 +109,7 @@ export const cancelTrip = async (
                     cancelled_at = now()
                 WHERE id = $3
                   AND status NOT IN ('in_progress', 'completed', 'cancelled')
-                RETURNING id , status
+                RETURNING id , status , driver_id
                             `,
       [userId, reason ?? null, id],
     );
@@ -117,6 +117,14 @@ export const cancelTrip = async (
       return next(new HttpError("Trip Cannot be cancelled", 409));
     }
     trip = result.rows[0];
+
+    await publishEvents("trip.cancelled", {
+      tripId: trip.id,
+      driverId: trip.driver_id,
+      cancelledBy: userId,
+      reason: reason ?? null,
+    });
+
     res.status(200).json({ message: "Trip Cancelled", trip });
   } catch (err) {
     next(err);
@@ -177,6 +185,8 @@ export const confirmPickup = async (
         from: "driver_en_route",
         to: "in_progress",
         changedAt: new Date().toISOString(),
+        riderId: trip.rider_id,
+        driverId: trip.driver_id,
       });
     }
 
@@ -243,6 +253,8 @@ export const confirmDropoff = async (
         from: "in_progress",
         to: "completed",
         changedAt: new Date().toISOString(),
+        riderId: trip.rider_id,
+        driverId: trip.driver_id,
       });
     }
 

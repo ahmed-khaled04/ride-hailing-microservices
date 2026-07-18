@@ -63,3 +63,36 @@ export async function consumeEvent(
     }
   }
 }
+
+let subscriberClient: Redis | null = null;
+
+function getSubscriberClient(): Redis {
+  if (!subscriberClient) {
+    subscriberClient = new Redis(process.env.REDIS_URL || "redis://redis:6379");
+  }
+  return subscriberClient;
+}
+
+export async function publish(channel: string, data: Record<string, unknown>) {
+  await redis.publish(channel, JSON.stringify(data));
+}
+
+export function subscribe(
+  pattern: string,
+  handler: (channel: string, data: any) => void,
+) {
+  const subscriber = getSubscriberClient();
+
+  subscriber.psubscribe(pattern, (err) => {
+    if (err) console.error(`Failed to subscribe to ${pattern}:`, err);
+  });
+
+  subscriber.on("pmessage", (subscribedPattern, channel, message) => {
+    if (subscribedPattern !== pattern) return;
+    try {
+      handler(channel, JSON.parse(message));
+    } catch (err) {
+      console.error(`Failed to handle message on channel ${channel}:`, err);
+    }
+  });
+}

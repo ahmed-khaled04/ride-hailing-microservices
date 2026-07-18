@@ -1,0 +1,95 @@
+.route-visual {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.route-visual__grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.35;
+  mask-image: radial-gradient(circle at center, black, transparent 75%);
+}
+
+.route-visual__svg {
+  width: min(90%, 440px);
+  height: auto;
+}
+
+.route-visual__path {
+  stroke: var(--transit);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 6 10;
+  fill: none;
+  opacity: 0.8;
+}
+
+.route-visual__path-glow {
+  stroke: var(--transit);
+  stroke-width: 8;
+  stroke-linecap: round;
+  fill: none;
+  opacity: 0.08;
+  filter: blur(2px);
+}
+
+.route-visual__pin {
+  fill: var(--panel);
+  stroke: var(--text-muted);
+  stroke-width: 2;
+}
+
+.route-visual__pin--end {
+  fill: var(--accent);
+  stroke: var(--accent-strong);
+}
+
+.route-visual__dot {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+
+.route-visual__ticker {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.02em;
+}
+
+.route-visual__ticker-sep {
+  color: var(--border);
+}
+
+.route-visual__ticker-label {
+  text-transform: uppercase;
+  color: var(--transit);
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
+@media (max-width: 860px) {
+  .route-visual__svg {
+    width: auto;
+    height: 82%;
+  }
+
+  .route-visual__ticker {
+    display: none;
+  }
+}

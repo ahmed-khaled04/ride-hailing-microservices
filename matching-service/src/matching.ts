@@ -58,7 +58,11 @@ async function matchTrip(tripId: string, originLat: number, originLng: number) {
       return 1;
     }
   }
-  await publishEvents("trip.no_drivers_available", { tripId });
+  const tripData = await getTripData(tripId);
+  await publishEvents("trip.no_drivers_available", {
+    tripId,
+    riderId: tripData?.riderId,
+  });
   await clearTripTracking(tripId);
 }
 

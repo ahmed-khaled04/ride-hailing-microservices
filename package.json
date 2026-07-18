@@ -9,6 +9,7 @@
     "matching-service",
     "location-service",
     "notification-service",
-    "gateway"
+    "gateway",
+    "frontend"
   ]
 }

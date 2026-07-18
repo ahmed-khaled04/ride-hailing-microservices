@@ -1,13 +1,17 @@
-import express from 'express';
+import express from "express";
 
-const SERVICE_NAME = 'notification-service';
+import { startNotificationConsumer } from "./events/consumer";
+
+const SERVICE_NAME = "notification-service";
 const PORT = process.env.PORT || 3005;
 
 const app = express();
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: SERVICE_NAME });
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok", service: SERVICE_NAME });
 });
+
+startNotificationConsumer();
 
 app.listen(PORT, () => {
   console.log(`${SERVICE_NAME} listening on port ${PORT}`);

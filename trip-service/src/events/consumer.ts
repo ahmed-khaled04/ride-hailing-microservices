@@ -3,12 +3,20 @@ import { consumeEvent, publishEvents } from "event-bus";
 
 import { pool } from "../db";
 
-async function emitStateChanged(tripId: string, from: string, to: string) {
+async function emitStateChanged(
+  tripId: string,
+  from: string,
+  to: string,
+  riderId: string,
+  driverId: string | null,
+) {
   await publishEvents("trip.state_changed", {
     tripId,
     from,
     to,
     changedAt: new Date().toISOString(),
+    riderId,
+    driverId,
   });
 }
 
@@ -16,20 +24,29 @@ async function handleOfferCreated(tripId: string) {
   const result = await pool.query(
     `UPDATE trips SET status = 'offer_pending'
      WHERE id = $1 AND status = 'requested'
-     RETURNING status`,
+     RETURNING status, rider_id, driver_id`,
     [tripId],
   );
   if (result.rows.length > 0) {
-    await emitStateChanged(tripId, "requested", "offer_pending");
+    const row = result.rows[0];
+    await emitStateChanged(
+      tripId,
+      "requested",
+      "offer_pending",
+      row.rider_id,
+      row.driver_id,
+    );
   }
 }
 
 async function handleMatched(tripId: string, driverId: string) {
-  const before = await pool.query("SELECT status FROM trips WHERE id = $1", [
-    tripId,
-  ]);
+  const before = await pool.query(
+    "SELECT status, rider_id FROM trips WHERE id = $1",
+    [tripId],
+  );
   if (before.rows.length === 0) return;
   const from = before.rows[0].status;
+  const riderId = before.rows[0].rider_id;
 
   let result = await pool.query(
     `UPDATE trips SET status = 'matched', driver_id = $2, matched_at = now()
@@ -38,7 +55,7 @@ async function handleMatched(tripId: string, driverId: string) {
     [tripId, driverId],
   );
   if (result.rows.length > 0) {
-    await emitStateChanged(tripId, from, "matched");
+    await emitStateChanged(tripId, from, "matched", riderId, driverId);
   }
 
   result = await pool.query(
@@ -48,16 +65,24 @@ async function handleMatched(tripId: string, driverId: string) {
     [tripId],
   );
   if (result.rows.length > 0) {
-    await emitStateChanged(tripId, "matched", "driver_en_route");
+    await emitStateChanged(
+      tripId,
+      "matched",
+      "driver_en_route",
+      riderId,
+      driverId,
+    );
   }
 }
 
 async function handleNoDriversAvailable(tripId: string) {
-  const before = await pool.query("SELECT status FROM trips WHERE id = $1", [
-    tripId,
-  ]);
+  const before = await pool.query(
+    "SELECT status, rider_id FROM trips WHERE id = $1",
+    [tripId],
+  );
   if (before.rows.length === 0) return;
   const from = before.rows[0].status;
+  const riderId = before.rows[0].rider_id;
   if (from !== "requested" && from !== "offer_pending") return;
 
   const result = await pool.query(
@@ -67,7 +92,7 @@ async function handleNoDriversAvailable(tripId: string) {
     [tripId],
   );
   if (result.rows.length > 0 && from !== "requested") {
-    await emitStateChanged(tripId, from, "requested");
+    await emitStateChanged(tripId, from, "requested", riderId, null);
   }
 }
 

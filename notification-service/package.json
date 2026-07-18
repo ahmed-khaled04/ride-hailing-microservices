@@ -8,7 +8,9 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "event-bus": "^1.0.0",
+    "express": "^4.19.2",
+    "ioredis": "^5.11.1"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
